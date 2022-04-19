@@ -1,0 +1,292 @@
+<html lang="zh-TW">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <link rel="stylesheet" href="https://unpkg.com/turretcss/dist/turretcss.min.css" crossorigin="anonymous">
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+
+<script>
+  function addSpace(str) {
+    if (str === '') return ''
+    return " " + str + " "
+  }
+
+  function addNo(str, level) {
+    switch (level) {
+      case 0:
+        return `第${str}條`
+      case 1:
+        return `第${str}項`
+      case 2:
+        return `第${str}款`
+      case 3:
+        return `第${str}目`
+      case 4:
+        return `之${str}`
+      default:
+        return str
+    }
+  }
+
+  function toAbbr(str, level) {
+    switch (level) {
+      case 0:
+        return `§${str}`
+      case 1:
+        const romanVal = romanize(parseInt(str))
+        if (romanVal) return romanVal
+        return str
+      case 2:
+        const circleVal = circle[parseInt(str) - 1]
+        if (circleVal) return circleVal
+        return str
+      case 3:
+        return `第${str}目`
+      case 4:
+        return `之${str}`
+      default:
+        return str
+    }
+  }
+
+  const numZhDict = {
+    '0': '零',
+    '1': '一',
+    '2': '二',
+    '3': '三',
+    '4': '四',
+    '5': '五',
+    '6': '六',
+    '7': '七',
+    '8': '八',
+    '9': '九',
+  }
+  const names = ['法', '條', '項', '款', '目', '之']
+  const digits = ['', '十', '百', '千', '萬']
+  function romanize(num) {
+    if (isNaN(num))
+      return NaN;
+    var digits = String(+num).split(""),
+      key = ["", "C", "CC", "CCC", "CD", "D", "DC", "DCC", "DCCC", "CM",
+        "", "X", "XX", "XXX", "XL", "L", "LX", "LXX", "LXXX", "XC",
+        "", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX"],
+      roman = "",
+      i = 3;
+    while (i--)
+      roman = (key[+digits.pop() + (i * 10)] || "") + roman;
+    return Array(+digits.join("") + 1).join("M") + roman;
+  }
+  const circle = ['➀', '➁', '➂', '➃', '➄', '➅', '➆', '➇', '➈', '➉', '⑪', '⑫', '⑬', '⑭', '⑮', '⑯', '⑰', '⑱', '⑲', '⑳']
+
+  function num2zh(num) {
+    if (num == 10) {
+      return '十'
+    }
+    if (num < 10) {
+      return numZhDict[num]
+    }
+    if (num < 20) {
+      return '十' + numZhDict[num % 10]
+    }
+    const reversed = reverseString(num.toString())
+    let list = []
+    for (let i = 0; i < reversed.length; i++) {
+      const zh = numZhDict[reversed[i]]
+      const suffix = digits[i]
+      if (reversed[i] === '0') {
+        list.push('零')
+      } else {
+        list.push(zh + suffix)
+      }
+    }
+    // remove repeated entries from an array while preserving non-consecutive duplicates
+    list = list.reverse().filter(function (item, pos, arr) {
+      return pos === 0 || item !== arr[pos - 1];
+    });
+    if (list[0] === '零') {
+      list.shift()
+    }
+    if (list[list.length - 1] === '零') {
+      list.pop()
+    }
+
+    return list.join("")
+  }
+
+  function reverseString(str) {
+    let newString = "";
+    for (var i = str.length - 1; i >= 0; i--) {
+      newString += str[i];
+    }
+    return newString;
+  }
+
+  function format(instance, { space, no, zh, abbr }) {
+    let list = instance.slice()
+
+    if (zh) {
+      list = list.map((item, i) => {
+        const num = parseInt(item)
+        if (isNaN(num)) {
+          return item
+        }
+        return num2zh(item)
+      })
+    }
+
+    if (abbr) {
+      list = instance.map((item, level) => {
+        if (!item) {
+          return item
+        } else {
+          return toAbbr(item, level - 1)
+        }
+      })
+    }
+
+    if (space) {
+      list = list.map((item, i) => {
+        if (i === 0) return item
+        if (!item) {
+          return item
+        } else {
+          return addSpace(item)
+        }
+      })
+    }
+
+    if (no) {
+      list = list.map((item, level) => {
+        if (!item) {
+          return item
+        } else {
+          return addNo(item, level - 1)
+        }
+      })
+    }
+
+    const result = list.join('')
+    if (result == '') return '　'
+    return result.trim()
+  }
+
+  function copyToClipboard(text) {
+    if (text == '　') return;
+    navigator.clipboard.writeText(text).then(function () {
+      console.log('Async: Copying to clipboard was successful!');
+    }, function (err) {
+      console.error('Async: Could not copy text: ', err);
+    });
+  }
+</script>
+
+<body>
+  <div class="center box" x-data="{ 
+    instance: Array(names.length - 2).fill(''),
+    options: {
+      space: false,
+      no: false,
+      zh: false,
+      abbr: true,
+    }
+  }">
+    <h1>⚖️法條條號格式化工具</h1>
+    <div class="instance">
+      <template x-for="(name, index) in instance" :key="index">
+        <input x-model="instance[index]" type="text" :placeholder="names[index]" />
+      </template>
+    </div>
+    <div class="options">
+      <p></p>
+      <p></p>
+      <p class="field">
+        <label class="control checkbox">
+          <input x-model="options.space" type="checkbox" name="checkbox" />
+          <span class="control-indicator"></span>
+          <span class="control-label">加空白</span>
+        </label>
+      </p>
+      <p class="field">
+        <label class="control checkbox">
+          <input x-model="options.no" type="checkbox" name="checkbox" />
+          <span class="control-indicator"></span>
+          <span class="control-label">條項款</span>
+        </label>
+      </p>
+      <p class="field">
+        <label class="control checkbox">
+          <input x-model="options.zh" type="checkbox" name="checkbox" />
+          <span class="control-indicator"></span>
+          <span class="control-label">中文數字</span>
+        </label>
+      </p>
+      <p class="field">
+        <label class="control checkbox">
+          <input x-model="options.abbr" type="checkbox" name="checkbox" />
+          <span class="control-indicator"></span>
+          <span class="control-label">縮寫</span>
+        </label>
+      </p>
+    </div>
+    <div class="padding-top-s">
+      <hr />
+      <div class="margin-bottom-s" x-text="format(instance, options)"></div>
+      <button class="button button-s button-square button-icon" @click="copyToClipboard(format(instance, options))">
+        <span>複製</span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-clipboard"
+          viewBox="0 0 16 16">
+          <path
+            d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z" />
+          <path
+            d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z" />
+        </svg>
+      </button>
+    </div>
+  </div>
+  <nav class="nav-inline background-primary padding-xs color-white">
+    <ul>
+      <li>
+        <a class="text-decoration-none" href="https://github.com/FOBshippingpoint/law-abbr-tool" target="_blank"
+          rel="noopener noreferrer">GitHub</a>
+      </li>
+      <li>
+        <a class="text-decoration-none" href="https://www.youtube.com/channel/UC-UzF0F_qnMhwy9oB-DyWsg" target="_blank"
+          rel="noopener noreferrer">YouTube</a>
+      </li>
+    </ul>
+  </nav>
+</body>
+
+<style>
+  .box {
+    width: 80%;
+  }
+
+  @media only screen and (min-width : 992px) {
+    .box {
+      width: 35%;
+    }
+
+    .instance {
+      display: grid;
+      grid-template-columns: 3.1fr repeat(3, 1fr);
+      grid-template-rows: 1fr;
+      grid-column-gap: 8px;
+      grid-row-gap: 0px;
+      width: 500px
+    }
+
+    .options {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: 0.01fr repeat(2, 1fr);
+      grid-column-gap: 0px;
+      grid-row-gap: 0px;
+    }
+  }
+</style>
+
+</html>
